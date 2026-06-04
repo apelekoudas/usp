@@ -387,10 +387,12 @@ bool smtc_relay_tx_prepare_wor( uint8_t relay_stack_id, uint32_t target_time, co
     // Don't compute drift error for at time message because it will have to use the max preamble
     if( infos->sync_status == RELAY_TX_SYNC_STATUS_SYNC )
     {
+        infos->relay_xtal_drift_ppm = 100;   // 330ms/hour
         drift_error_ms = ( lr1_infos->crystal_error_ppm + infos->relay_xtal_drift_ppm ) * 2;
-        drift_error_ms *= ( target_time + cad_period_ms - ref_timestamp );
-        drift_error_ms /= 1000000;
+        drift_error_ms *= ( target_time + cad_period_ms - ref_timestamp ) / 1000;
+        drift_error_ms = (drift_error_ms + 999) / 1000;
 
+        SMTC_MODEM_HAL_TRACE_PRINTF( "XTAL* error : %d, Relay error %d PPM\n", lr1_infos->crystal_error_ppm, infos->relay_xtal_drift_ppm );
         SMTC_MODEM_HAL_TRACE_PRINTF( "Drift error : %d ms\n", drift_error_ms );
 
         if( drift_error_ms >= cad_period_ms )
@@ -454,11 +456,11 @@ bool smtc_relay_tx_prepare_wor( uint8_t relay_stack_id, uint32_t target_time, co
     }
     else
     {
-        infos->last_preamble_len_symb = drift_error_ms * 1000 / symb_time_us + 1 + 6 + infos->relay_cad_to_rx;
+        infos->last_preamble_len_symb = (drift_error_ms * 1000) / symb_time_us + 1 + 6 + infos->relay_cad_to_rx;
         //+1 to round up, +6 minimum symbol for reception + delay to switch CAD->RX -> always >8
     }
 
-    infos->last_preamble_len_ms = infos->last_preamble_len_symb * symb_time_us / 1000 + 1;
+    infos->last_preamble_len_ms = (infos->last_preamble_len_symb * symb_time_us) / 1000 + 1;
 
     // SMTC_MODEM_HAL_TRACE_PRINTF( "WOR: Preamble %d symb (%d ms) at DR%d %d Hz\n", infos->last_preamble_len_symb,
     //                              infos->last_preamble_len_ms, conf->dr, conf->freq_hz );

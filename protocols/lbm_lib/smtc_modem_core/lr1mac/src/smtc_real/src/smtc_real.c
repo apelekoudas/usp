@@ -3220,11 +3220,14 @@ void smtc_real_get_rx_window_parameters( smtc_real_t* real, uint8_t datarate, ui
     }
 
     *rx_timeout_symb_in_ms =
-        MAX( ( ( ( ( rx_delay_ms * 2 * crystal_error ) / 1000 ) + ( min_rx_window_symb * tsymbol_us ) ) / 1000 ),
+        MAX( ( ( ( ( rx_delay_ms * 2 * crystal_error ) / 1000 ) + ( min_rx_window_symb * tsymbol_us ) ) / 1000 ) + 1 + 2*5, // round-up and add board delay (needed ?)
              min_rx_symb_duration_ms );
 
     *rx_window_symb =
-        MIN( MAX( ( ( *rx_timeout_symb_in_ms * 1000 ) / tsymbol_us ), min_rx_window_symb ), MAX_RX_WINDOW_SYMB );
+        MIN( MAX( ( ( *rx_timeout_symb_in_ms * 1000 ) / tsymbol_us ) + 1, min_rx_window_symb ), MAX_RX_WINDOW_SYMB );
+    
+    LOG_DBG("rx_delay_ms=%d, crystal_error=%d, min_rx_window_symb=%d, tsymbol_us=%d, min_rx_symb_duration_ms=%d, rx_window_symb=%d, rx_timeout_symb_in_ms=%d",
+        rx_delay_ms, crystal_error, min_rx_window_symb, tsymbol_us, min_rx_symb_duration_ms, *rx_window_symb, *rx_timeout_symb_in_ms);
 
     // Because the hardware allows an even number of symbols
     if( ( ( *rx_window_symb % 2 ) == 1 ) && ( *rx_window_symb != MAX_RX_WINDOW_SYMB ) )
@@ -3232,10 +3235,11 @@ void smtc_real_get_rx_window_parameters( smtc_real_t* real, uint8_t datarate, ui
         *rx_window_symb = *rx_window_symb + 1;
     }
 
-    *rx_timeout_symb_in_ms = MAX( ( *rx_window_symb * tsymbol_us ) / 1000, MIN_RX_WINDOW_DURATION_MS );
+    *rx_timeout_symb_in_ms = MAX( ( *rx_window_symb * tsymbol_us ) / 1000 + 1, MIN_RX_WINDOW_DURATION_MS );
 
     *rx_timeout_preamble_locked_in_ms = 3000;
 
+    LOG_DBG("rx_window_symb=%d, rx_timeout_symb_in_ms=%d", *rx_window_symb, *rx_timeout_symb_in_ms);
 #if defined( SX128X )
     // rx timeout is used to simuate a symb timeout in sx128x (need to open preamb + sync +header)
     *rx_timeout_preamble_locked_in_ms =
